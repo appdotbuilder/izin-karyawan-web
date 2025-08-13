@@ -1,19 +1,62 @@
+import { db } from '../db';
+import { leaveRequestsTable } from '../db/schema';
 import { type DashboardStats } from '../schema';
+import { eq, count, countDistinct } from 'drizzle-orm';
 
-export async function getDashboardStats(): Promise<DashboardStats> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is calculating and returning dashboard statistics.
-    // It should:
-    // 1. Count total leave requests
-    // 2. Count requests by status (pending, approved, rejected)
-    // 3. Count total unique employees who have made requests
-    // 4. Return aggregated statistics for dashboard display
-    
-    return Promise.resolve({
-        total_requests: 0,
-        pending_requests: 0,
-        approved_requests: 0,
-        rejected_requests: 0,
-        total_employees: 0
-    });
-}
+export const getDashboardStats = async (): Promise<DashboardStats> => {
+  try {
+    // Get total requests count
+    const totalRequestsResult = await db.select({
+      total: count(leaveRequestsTable.id)
+    })
+    .from(leaveRequestsTable)
+    .execute();
+
+    const total_requests = totalRequestsResult[0]?.total || 0;
+
+    // Get counts by status
+    const pendingResult = await db.select({
+      count: count(leaveRequestsTable.id)
+    })
+    .from(leaveRequestsTable)
+    .where(eq(leaveRequestsTable.status, 'pending'))
+    .execute();
+
+    const approvedResult = await db.select({
+      count: count(leaveRequestsTable.id)
+    })
+    .from(leaveRequestsTable)
+    .where(eq(leaveRequestsTable.status, 'approved'))
+    .execute();
+
+    const rejectedResult = await db.select({
+      count: count(leaveRequestsTable.id)
+    })
+    .from(leaveRequestsTable)
+    .where(eq(leaveRequestsTable.status, 'rejected'))
+    .execute();
+
+    // Get total unique employees who have made requests
+    const totalEmployeesResult = await db.select({
+      count: countDistinct(leaveRequestsTable.employee_id)
+    })
+    .from(leaveRequestsTable)
+    .execute();
+
+    const pending_requests = pendingResult[0]?.count || 0;
+    const approved_requests = approvedResult[0]?.count || 0;
+    const rejected_requests = rejectedResult[0]?.count || 0;
+    const total_employees = totalEmployeesResult[0]?.count || 0;
+
+    return {
+      total_requests,
+      pending_requests,
+      approved_requests,
+      rejected_requests,
+      total_employees
+    };
+  } catch (error) {
+    console.error('Dashboard stats retrieval failed:', error);
+    throw error;
+  }
+};
